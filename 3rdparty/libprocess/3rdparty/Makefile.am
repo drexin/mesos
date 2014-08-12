@@ -134,6 +134,7 @@ stout_tests_SOURCES =				\
   $(STOUT)/tests/base64_tests.cpp		\
   $(STOUT)/tests/bytes_tests.cpp		\
   $(STOUT)/tests/cache_tests.cpp		\
+  $(STOUT)/tests/svn_tests.cpp			\
   $(STOUT)/tests/duration_tests.cpp		\
   $(STOUT)/tests/dynamiclibrary_tests.cpp	\
   $(STOUT)/tests/error_tests.cpp		\
@@ -173,6 +174,8 @@ stout_tests_CPPFLAGS =				\
   -I$(GTEST)/include				\
   -I$(GMOCK)/include				\
   -I$(PROTOBUF)/src				\
+  -I/usr/include/subversion-1			\
+  -I/usr/include/apr-1				\
   $(AM_CPPFLAGS)
 
 if WITH_BUNDLED_BOOST
@@ -194,7 +197,10 @@ stout_tests_LDADD =			\
   libgmock.la				\
   $(PROTOBUF)/src/libprotobuf.la	\
   $(LIBGLOG)				\
-  -ldl
+  -ldl					\
+  -lsvn_subr-1				\
+  -lsvn_delta-1				\
+  -lapr-1
 
 # We use a check-local target for now to avoid the parallel test
 # runner that ships with newer versions of autotools.

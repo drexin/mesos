@@ -99,9 +99,10 @@ static string encode(uint64_t position, bool adjust = true)
   // stream.WriteVarint64(position);
   // return s;
 
-  Try<string> s = strings::format("%.*d", 10, position);
-  CHECK_SOME(s);
-  return s.get();
+  std::ostringstream out;
+  out << std::setfill('0') << std::setw(10) << position;
+
+  return out.str();
 }
 
 

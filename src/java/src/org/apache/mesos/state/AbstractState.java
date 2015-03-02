@@ -77,6 +77,15 @@ public abstract class AbstractState implements State {
   }
 
   @Override
+  public void fetch(
+      String name,
+      CompletionHandler<Variable> successHandler,
+      CompletionHandler<Throwable> errorHandler) {
+    final long future = __fetch(name);
+    __register_callback(future, successHandler, errorHandler);
+  }
+
+  @Override
   public Future<Variable> store(Variable variable) {
     final long future = __store(variable); // Asynchronously start the operation.
     return new Future<Variable>() {
@@ -234,6 +243,11 @@ public abstract class AbstractState implements State {
   private native Iterator<String> __names_get_timeout(
       long future, long timeout, TimeUnit unit);
   private native void __names_finalize(long future);
+
+  private native void __register_callback(
+      long future,
+      CompletionHandler<?> handler,
+      CompletionHandler<Throwable> errorHandler);
 
   private long __storage;
   private long __state;

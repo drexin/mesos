@@ -54,6 +54,18 @@ public class InMemoryState implements State {
   }
 
   @Override
+  public void fetch(
+      String name,
+      CompletionHandler<Variable> successHandler,
+      CompletionHandler<Throwable> errorHandler) {
+    try {
+      successHandler.call(fetch(name).get());
+    } catch (Exception e) {
+      errorHandler.call(e);
+    }
+  }
+
+  @Override
   public Future<Variable> store(Variable v) {
     InMemoryVariable variable = (InMemoryVariable) v;
 

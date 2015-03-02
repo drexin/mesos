@@ -60,6 +60,11 @@ public interface State {
    */
   Future<Variable> fetch(String name);
 
+  void fetch(
+    String name,
+    CompletionHandler<Variable> successHandler,
+    CompletionHandler<Throwable> errorHandler);
+
   /**
    * Returns an immutable "variable" representing the current value in
    * the state if updating the specified variable in the state was

@@ -49,7 +49,99 @@ JNIEXPORT void JNICALL Java_org_apache_mesos_state_AbstractState_finalize
 
 /*
  * Class:     org_apache_mesos_state_AbstractState
- * Method:    __fetch
+ * Method:    __register_callback
+ * Signature: (JLorg/apache/mesos/state/CompletionHandler;Lorg/apache/mesos/state/CompletionHandler;)V
+ */
+JNIEXPORT void JNICALL Java_org_apache_mesos_state_AbstractState__1_1register_1callback
+  (JNIEnv* env, jobject thiz, jlong jfuture, jobject jsuccess_handler, jobject jerror_handler)
+{
+  // save reference to the JVM to create an
+  // environment in the onAny handler
+  JavaVM* jvm;
+  env->GetJavaVM(&jvm);
+
+  Future<Variable>* future = (Future<Variable>*) jfuture;
+
+  // create global refs for the handler and the
+  // Variable class object to make it accessible
+  // in the onAny handler
+  jobject g_success_handler = env->NewGlobalRef(jsuccess_handler);
+  jobject g_error_handler = env->NewGlobalRef(jerror_handler);
+
+  jclass g_variable_class = (jclass) env->NewGlobalRef(
+      env->FindClass("org/apache/mesos/state/Variable"));
+
+  // get constructor of the java Variable class
+  jfieldID __variable = env->GetFieldID(g_variable_class, "__variable", "J");
+  jmethodID _variable_init_ = env->GetMethodID(
+      g_variable_class, "<init>", "()V");
+
+  jclass success_handler_class = env->GetObjectClass(g_success_handler);
+  jmethodID on_success = env->GetMethodID(
+      success_handler_class, "call", "(Ljava/lang/Object;)V");
+
+  jclass error_handler_class = env->GetObjectClass(g_error_handler);
+  jmethodID on_error = env->GetMethodID(
+      error_handler_class, "call", "(Ljava/lang/Object;)V");
+
+  future->onAny([=](Future<Variable> future_variable) {
+    JNIEnv *env;
+    jint res = jvm->AttachCurrentThread((void **)&env, NULL);
+    if (res < 0) {
+      jclass clazz = env->FindClass("java/util/concurrent/ExecutionException");
+      jmethodID _init_ = env->GetMethodID(
+        clazz, "<init>", "(L/java/lang/String;)V");
+      jobject exception = env->NewObject(
+        clazz, _init_, "Failed to attach execution thread to JVM");
+
+      env->CallVoidMethod(g_error_handler, on_error, exception);
+    } else if (future_variable.isReady()) {
+      Variable* p_variable = new Variable(future_variable.get());
+
+      jobject jvariable = env->NewObject(g_variable_class, _variable_init_);
+      env->SetLongField(jvariable, __variable, (jlong) p_variable);
+
+      env->CallVoidMethod(g_success_handler, on_success, jvariable);
+    } else if (future_variable.isDiscarded()) {
+      jclass clazz = env->FindClass(
+        "java/util/concurrent/CancellationException");
+      jmethodID _init_ = env->GetMethodID(
+        clazz, "<init>", "(L/java/lang/String;)V");
+      jobject exception = env->NewObject(clazz, _init_, "Future was discarded");
+
+      env->CallVoidMethod(g_error_handler, on_error, exception);
+    } else if (future_variable.isFailed()) {
+      jclass clazz = env->FindClass("java/util/concurrent/ExecutionException");
+      jmethodID _init_ = env->GetMethodID(
+        clazz, "<init>", "(L/java/lang/String;)V");
+      jobject exception = env->NewObject(
+          clazz, _init_, future_variable.failure().c_str());
+
+      env->CallVoidMethod(g_error_handler, on_error, exception);
+    } else {
+      jclass clazz = env->FindClass("java/util/concurrent/ExecutionException");
+      jmethodID _init_ = env->GetMethodID(
+        clazz, "<init>", "(L/java/lang/String;)V");
+      jobject exception = env->NewObject(
+          clazz, _init_, "Future completed with an unknown state");
+
+      env->CallVoidMethod(g_error_handler, on_error, exception);
+    }
+
+
+    // cleanup
+    env->DeleteGlobalRef(g_success_handler);
+    env->DeleteGlobalRef(g_error_handler);
+    env->DeleteGlobalRef(g_variable_class);
+    jvm->DetachCurrentThread();
+    delete future;
+  });
+}
+
+
+/*
+ * Class:     org_apache_mesos_state_AbstractState
+ * Method:    __fetch_register_callback
  * Signature: (Ljava/lang/String;)J
  */
 JNIEXPORT jlong JNICALL Java_org_apache_mesos_state_AbstractState__1_1fetch
